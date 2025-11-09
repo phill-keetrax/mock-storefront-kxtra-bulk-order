@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bulk Order App (Dev Mode)</title>
+</head>
+
+<body class="bg-gray-50 p-8">
+
+    <h1 class="text-2xl font-bold mb-4">Mock Shopify Store Page</h1>
+    <p class="mb-4">Your React app will be mounted inside the container below.</p>
+
+    <!-- This is the container Shopify will provide for your app -->
+    <div id="bulk-order-app" class="border border-dashed border-gray-400 rounded-lg p-4">
+        <!-- Your React app will appear here -->
+    </div>
+
+    <!-- 1. Load the React app's entry point (main.jsx) -->
+    <script type="module" src="/main.jsx"></script>
+
+    <!-- 2. Simulate Shopify by calling the mount function with mock data -->
+    <script type="module">
+        // --- Your Mock Data ---
+        const MOCK_PROPS = {
+            "initialQuantity": 5,
+            "product": {
+                "id": 9479120978218,
+                "title": "Congratulations Treat Gift Hamper",
+                "handle": "congratulations-treat-gift-hamper",
+                "price": 6500
+            },
+            "variant": {
+                "id": 49252246978858,
+                "title": "Default Title",
+                "price": 6500,
+                "image": null
+            }
+        };
+
+
+        function attemptMount() {
+            const container = document.getElementById('bulk-order-app');
+
+            if (container && window.mountKXtraBulkOrderApp) {
+                // The mount function is ready! Call it.
+                console.log("Mounting React app with mock data...", MOCK_PROPS);
+                window.mountKXtraBulkOrderApp(container, MOCK_PROPS);
+            } else {
+                // Function not ready yet, try again
+                console.log("Waiting for app to load...");
+                setTimeout(attemptMount, 100);
+            }
+        }
+
+        window.addEventListener('load', attemptMount);
+    </script>
+</body>
+
+</html>

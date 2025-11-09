@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+.action-button-bg {
+    background-color: #efbec6 !important;
+}
+
+.action-button-bg:hover {
+    background-color: #e84b84 !important;
+}
