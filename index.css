@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 
-.action-button-bg {
+.kxtra-brand-bg {
     background-color: #efbec6 !important;
 }
 
-.action-button-bg:hover {
+.kxtra-brand-bg:hover {
     background-color: #e84b84 !important;
 }

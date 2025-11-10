@@ -6,6 +6,7 @@ function newId() {
     return '_' + Math.random().toString(36).substring(2, 9);
 }
 
+
 /**
  * @typedef {object} RecipientRow
  * @property {string} id - Unique identifier for the row
@@ -33,6 +34,8 @@ function newId() {
  * @property {string} email - Email address (optional)
  */
 
+const SHIPPING_RATE_CENTS = 1595; // $15.95 in cents
+
 /**
  * @param {string} sku - The product SKU (or ID)
  * @returns {RecipientRow} A new recipient row object
@@ -47,7 +50,7 @@ function createNewRecipient(sku, unitPrice) {
         shippingAddress: { ...BLANK_ADDRESS },
         giftMessage: "",
         totalPrice: initialQuantity * unitPrice,
-        shippingCost: 0,
+        shippingCost: initialQuantity * (SHIPPING_RATE_CENTS / 100),
     };
 }
 
@@ -69,13 +72,9 @@ function App({ globalMethods, ...props }) {
         if (globalMethods) {
             globalMethods({
                 getInititalOrderData: () => appProps,
-                updateInititalOrderData: (newProps) => {
-                    console.log('App received new data:', newProps);
-                    setAppProps(newProps);
-                }
             });
         }
-    }, [globalMethods, appProps]);
+    }, [globalMethods]);
 
     useEffect(() => {
         if (!appProps.initialQuantity || !appProps.variant) {
@@ -90,7 +89,7 @@ function App({ globalMethods, ...props }) {
 
     }, [appProps, productPrice]);
 
-    // --- Event Handlers ---
+    // ! --- Event Handlers ---
     function handleInputChange(index, fieldName, value) {
         const newRecipients = [...recipients];
 
@@ -104,6 +103,12 @@ function App({ globalMethods, ...props }) {
 
         newRecipients[index].quantity = validatedQuantity;
         newRecipients[index].totalPrice = validatedQuantity * productPrice;
+        if (validatedQuantity >= 3) {
+            newRecipients[index].shippingCost = 0; // free shipping for 3 or more items
+        } else {
+            newRecipients[index].shippingCost = validatedQuantity * SHIPPING_RATE_CENTS / 100;
+        }
+        
         setRecipients(newRecipients);
     }
 
@@ -127,16 +132,10 @@ function App({ globalMethods, ...props }) {
     }
 
     // ! ADDRESS HANDLERS
-    /**
-     * Called when the user clicks the "Shipping Address" button in the table row
-     */
     function handleAddressCellClick(index) {
         setEditingAddressIndex(index);
     }
 
-    /**
-     * Called by the ShippingDetailsForm when the user saves a new or existing address
-     */
     function handleAddressSave(newAddress) {
         if (editingAddressIndex === null) return;
 
@@ -157,15 +156,23 @@ function App({ globalMethods, ...props }) {
         setEditingAddressIndex(null);
     }
 
-    // --- Memoized Calculations ---
-    const totalQuantity = useMemo(() => {
-        return recipients.reduce((total, row) => total + row.quantity, 0);
-    }, [recipients]);
+    // ! --- Memoized Calculations ---
+    const orderTotals = useMemo(() => {
+        let quantity = 0;
+        let price = 0;
+        let shipping = 0;
 
-    const totalPrice = useMemo(() => {
-        const sum = recipients.reduce((total, row) => total + row.totalPrice, 0);
+        recipients.forEach((row) => {
+            quantity += row.quantity;
+            price += row.totalPrice;
+            shipping += row.shippingCost;
+        });
 
-        return Number(sum.toFixed(2));
+        return {
+            quantity: quantity,
+            price: Number(price.toFixed(2)),
+            shipping: Number(shipping.toFixed(2)),
+        };
     }, [recipients]);
 
     // --- Render ---
@@ -184,7 +191,7 @@ function App({ globalMethods, ...props }) {
                 <h2 className='text-xl text-gray-700'>
                     {appProps.product.title} - ${productPrice.toFixed(2)} each
                 </h2>
-                <div className="action-button-bg border border-rose-500 text-rose-800 p-2 mt-2 rounded-lg text-xs">
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-lg text-xs mt-2">
                     When sending items direct to your recipients, the below recipient
                     addresses will be used however, to complete the checkout, you will
                     still need to add an address (yours or your business address) in the
@@ -203,6 +210,7 @@ function App({ globalMethods, ...props }) {
                                 <th className="p-3 font-semibold text-center text-gray-600 border-b border-gray-300">Message</th>
                                 <th className="p-3 font-semibold text-center text-gray-600 border-b border-gray-300">Shipping Details</th>
                                 <th className="p-3 font-semibold text-center text-gray-600 border-b border-gray-300">Total</th>
+                                <th className="p-3 font-semibold text-center text-gray-600 border-b border-gray-300">Shipping</th>
                                 <th className="p-3 font-semibold text-center text-gray-600 border-b border-gray-300">Remove</th>
                             </tr>
                         </thead>
@@ -264,9 +272,14 @@ function App({ globalMethods, ...props }) {
                                             </button>
                                         )}
                                     </td>
+
                                     {/* line total */}
                                     <td className="p-2 pt-4 font-medium text-center">
                                         ${row.totalPrice.toFixed(2)}
+                                    </td>
+                                    {/* shipping cost */}
+                                    <td className="p-2 pt-4 font-medium text-center">
+                                        {row.shippingCost ? `$${row.shippingCost.toFixed(2)}` : 'FREE'}
                                     </td>
                                     {/* remove row */}
                                     <td className="p-2 font-medium text-center">
@@ -284,7 +297,7 @@ function App({ globalMethods, ...props }) {
                 </div>
             </section>
             {/* === FOOTER === */}
-            <footer className="mt-4 pt-2 border-t border-gray-300 flex justify-between items-start flex-col sm:flex-row gap-4">
+            <footer className="mt-4 pt-2 px-1 border-t border-gray-300 flex justify-between items-start flex-col sm:flex-row gap-4">
                 <button
                     type="button"
                     className="flex items-center gap-2 text-gray-500 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200 border border-1 border-gray-400 transition-colors"
@@ -296,17 +309,20 @@ function App({ globalMethods, ...props }) {
                 <div className="flex flex-col justify-between items-end">
                     <div className="text-right mb-4 sm:mb-0">
                         {/* --- TOTALS --- */}
-                        <div className="text-2xl font-bold text-gray-900">
-                            ESTIMATED TOTAL: ${totalPrice} + GST
+                        <div className="text-2xl font-bold text-gray-900 mb-2">
+                            ESTIMATED TOTAL: ${(orderTotals.price + orderTotals.shipping).toFixed(2)} +GST
                         </div>
-                        <div className="text-sm text-gray-500">
-                            Includes {recipients.length} Recipients (Excluding shipping)
+                        <div className="py-1 text-sm text-gray-500 w-5/12 ml-auto flex justify-between">
+                            Subtotal <span className="text-right">${orderTotals.price.toFixed(2)}</span>
+                        </div>
+                        <div className="py-1 text-sm text-gray-500 w-5/12 ml-auto flex justify-between">
+                            Shipping <span className="text-right">${orderTotals.shipping.toFixed(2)}</span>
                         </div>
                     </div>
                     {/* --- "COMPLETE ORDER" BUTTON --- */}
                     <button
                         type="button"
-                        className="mt-4 action-button-bg text-white w-full sm:w-auto px-10 py-3 rounded-xl font-bold text-lg transition-colors"
+                        className="mt-4 kxtra-brand-bg text-white w-full sm:w-auto px-10 py-3 rounded-xl font-bold text-lg transition-colors"
                         onClick={handleSubmit}
                     >
                         Complete bulk order
